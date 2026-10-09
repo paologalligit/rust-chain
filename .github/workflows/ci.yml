@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  quality:
+    name: Format, lint, test, docs, release build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Lint all targets
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Test
+        run: cargo test --locked
+      - name: Build API documentation
+        run: cargo doc --no-deps --locked
+      - name: Build optimized binary
+        run: cargo build --release --locked
+
+  coverage:
+    name: Line coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install stable Rust and LLVM tools
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup component add llvm-tools-preview --toolchain stable
+          rustup default stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+          fallback: none
+      - name: Generate coverage report
+        run: cargo llvm-cov --locked --workspace --all-targets --lcov --output-path lcov.info
+      - name: Coverage summary
+        run: cargo llvm-cov report --fail-under-lines 85
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: line-coverage
+          path: lcov.info
+          if-no-files-found: ignore
+          retention-days: 14
+
+  audit:
+    name: Dependency advisories
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+          fallback: none
+      - name: Audit lockfile
+        run: cargo audit
+
+  package:
+    name: Package tagged demo
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [quality, coverage, audit]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build and package Linux binary
+        run: |
+          cargo build --release --locked
+          mkdir -p dist/rust-chain
+          cp target/release/rust-chain README.md dist/rust-chain/
+          tar -czf dist/rust-chain-linux-x86_64.tar.gz -C dist rust-chain
+          cd dist
+          sha256sum rust-chain-linux-x86_64.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rust-chain-linux-x86_64
+          path: |
+            dist/rust-chain-linux-x86_64.tar.gz
+            dist/SHA256SUMS
+          retention-days: 30
