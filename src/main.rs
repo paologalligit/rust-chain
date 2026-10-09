@@ -1,29 +1,20 @@
 use chrono::Utc;
-use rust_chain::core::{mine_new_block, Block, History, NaiveReorgStrategy};
+use rust_chain::core::{mine_new_block, AppendToHistoryError, Block, History, NaiveReorgStrategy};
 
-fn main() {
-    println!("Starting the rust chain...");
+fn main() -> Result<(), AppendToHistoryError> {
+    let mut history = History::new(Box::new(NaiveReorgStrategy));
+    println!("Mining four demo blocks at fixed 8-bit difficulty");
 
-    let mut h = History::new(Box::new(NaiveReorgStrategy {}));
-
-    loop {
-        let prev_block = h.get_last_block().unwrap();
-        let height = h.get_height();
+    for _ in 0..4 {
+        let prev_block = history.get_last_block().expect("genesis block exists");
+        let height = prev_block.height + 1;
         let timestamp = Utc::now().timestamp();
         let txs = Vec::new();
-
-        if height == 5 {
-            return;
-        }
-
-        println!("Start computing hash...");
-        let (nonce, hash) = mine_new_block(height as u64, timestamp, &prev_block.hash, &txs);
-        println!("Computed hash");
+        let (nonce, hash) = mine_new_block(height, timestamp, &prev_block.hash, &txs);
         let new_block = Block::new(prev_block, hash, timestamp, txs, nonce);
-        println!("Appending new block");
-        match h.try_to_append(new_block) {
-            Ok(_) => println!("Block appended successfully"),
-            Err(e) => eprintln!("Error occurred while trying to append a new block: {}", e)
-        }
+        history.try_to_append(new_block)?;
+        println!("height={height} nonce={nonce}");
     }
+
+    Ok(())
 }

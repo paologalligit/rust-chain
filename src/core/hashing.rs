@@ -11,17 +11,20 @@ pub fn calculate_hash(data: &Value) -> [u8; 32] {
         .expect("Failed to convert hash to array")
 }
 
-pub fn hash_to_binary_representation(hash: &[u8]) -> String {
-    let mut res: String = String::default();
-    for c in hash {
-        res.push_str(&format!("{:b}", c));
+pub fn meets_difficulty(hash: &[u8], leading_zero_bits: u32) -> bool {
+    if leading_zero_bits > (hash.len() * 8) as u32 {
+        return false;
     }
-    res
+
+    let whole_bytes = (leading_zero_bits / 8) as usize;
+    let remaining_bits = leading_zero_bits % 8;
+    hash.iter().take(whole_bytes).all(|byte| *byte == 0)
+        && (remaining_bits == 0 || hash[whole_bytes].leading_zeros() >= remaining_bits)
 }
 
 #[cfg(test)]
 mod hashing_test {
-    use super::calculate_hash;
+    use super::{calculate_hash, meets_difficulty};
 
     #[test]
     fn create_32_len_hash() {
@@ -36,5 +39,13 @@ mod hashing_test {
         let hash = calculate_hash(&data);
 
         assert_eq!(32, hash.len());
+    }
+
+    #[test]
+    fn difficulty_counts_leading_bits_instead_of_unpadded_byte_strings() {
+        assert!(meets_difficulty(&[0b0010_0000], 2));
+        assert!(!meets_difficulty(&[0b0100_0000], 2));
+        assert!(meets_difficulty(&[0, 0b0111_1111], 9));
+        assert!(!meets_difficulty(&[0], 9));
     }
 }

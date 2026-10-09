@@ -11,7 +11,7 @@ impl fmt::Display for AppendToHistoryError {
 }
 
 impl From<FromHexError> for AppendToHistoryError {
-    fn from(err: FromHexError) -> AppendToHistoryError {
+    fn from(_: FromHexError) -> AppendToHistoryError {
         AppendToHistoryError {}
     }
 }
@@ -22,12 +22,6 @@ pub struct TransactionValidationError;
 impl fmt::Display for TransactionValidationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Transaction failed to validate")
-    }
-}
-
-impl From<FromHexError> for TransactionValidationError {
-    fn from(err: FromHexError) -> TransactionValidationError {
-        TransactionValidationError {}
     }
 }
 
@@ -49,3 +43,6 @@ impl fmt::Display for EmptySignatureError {
 }
 
 impl std::error::Error for EmptySignatureError {}
+
+impl std::error::Error for AppendToHistoryError {}
+impl std::error::Error for TransactionValidationError {}

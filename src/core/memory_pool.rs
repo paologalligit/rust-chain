@@ -2,6 +2,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use super::{Transaction, TransactionPriority, TransactionValidationError};
 
+/// Bounded pending transactions ordered by fee, amount, and transaction ID.
 pub struct MemPool {
     prioritized_txs: BTreeSet<TransactionPriority>,
     txs: HashMap<String, Transaction>,
@@ -20,11 +21,18 @@ impl MemPool {
     pub fn add_tx(&mut self, tx: Transaction) -> Result<(), TransactionValidationError> {
         tx.validate()?;
 
-        if self.txs.len() == self.max_cap {
+        let tx_priority = TransactionPriority::new_from_tx(&tx);
+        if !self.txs.contains_key(&tx.nonce) && self.txs.len() >= self.max_cap {
+            let worst = self
+                .prioritized_txs
+                .last()
+                .ok_or(TransactionValidationError)?;
+            if tx_priority >= *worst {
+                return Err(TransactionValidationError);
+            }
             self.evict_tx();
         }
 
-        let tx_priority = TransactionPriority::new_from_tx(&tx);
         if let Some(already_existing_tx) = self.txs.insert(tx.nonce.clone(), tx) {
             self.prioritized_txs
                 .retain(|t| t.nonce != already_existing_tx.nonce);
@@ -78,12 +86,14 @@ impl MemPool {
     pub fn len(&self) -> usize {
         self.txs.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.txs.is_empty()
+    }
 }
 
 #[cfg(test)]
 mod memory_pool_test {
-    use std::ptr::null;
-
     use crate::core::Transaction;
 
     use super::MemPool;
@@ -106,7 +116,7 @@ mod memory_pool_test {
     }
 
     #[test]
-    fn adding_new_tx_when_max_capacity_removes_tx_with_lower_fee_in_place_of_the_new_one() {
+    fn full_pool_rejects_lower_fee_and_evicts_for_higher_fee() {
         let mut mempool = MemPool::new(5);
 
         assert_eq!(0, mempool.len());
@@ -127,12 +137,17 @@ mod memory_pool_test {
 
         assert_eq!(5, mempool.len());
 
-        let new_tx = Transaction::new(
+        let low_fee_tx = Transaction::new(
             "from_address".to_string(),
             "to_string".to_string(),
             1234500,
             5,
         );
+        assert!(mempool.add_tx(low_fee_tx).is_err());
+        assert_eq!(5, mempool.len());
+        assert!(mempool.get_tx(&tx_low_fee_nonce).is_some());
+
+        let new_tx = Transaction::new("from_address".into(), "to_string".into(), 1234500, 20);
         let new_tx_nonce = new_tx.nonce.clone();
         let add_res = mempool.add_tx(new_tx);
 
@@ -235,8 +250,47 @@ mod memory_pool_test {
         assert_eq!(1, mempool.len());
 
         let tx = mempool.get_tx(&tx_nonce);
-        assert!(
-            tx.is_some_and(|t| t.nonce == tx_nonce && t.amount == 1234500 && t.fee == 100)
-        );
+        assert!(tx.is_some_and(|t| t.nonce == tx_nonce && t.amount == 1234500 && t.fee == 100));
+    }
+
+    #[test]
+    fn duplicate_at_capacity_does_not_evict_another_transaction() {
+        let mut mempool = MemPool::new(1);
+        let tx = Transaction::new("a".into(), "b".into(), 1, 1);
+        let nonce = tx.nonce.clone();
+        mempool.add_tx(tx.clone()).unwrap();
+        mempool.add_tx(tx).unwrap();
+        assert_eq!(1, mempool.len());
+        assert!(mempool.get_tx(&nonce).is_some());
+    }
+
+    #[test]
+    fn equal_fee_and_amount_transactions_have_distinct_priorities() {
+        let mut mempool = MemPool::new(2);
+        mempool
+            .add_tx(Transaction::new("a".into(), "b".into(), 1, 1))
+            .unwrap();
+        mempool
+            .add_tx(Transaction::new("c".into(), "d".into(), 1, 1))
+            .unwrap();
+        assert_eq!(2, mempool.take_txs_w_limit(2).len());
+        assert!(mempool.is_empty());
+    }
+
+    #[test]
+    fn zero_capacity_rejects_without_panicking() {
+        let mut mempool = MemPool::new(0);
+        assert!(mempool
+            .add_tx(Transaction::new("a".into(), "b".into(), 1, 1))
+            .is_err());
+    }
+
+    #[test]
+    fn invalid_transaction_does_not_enter_pool() {
+        let mut mempool = MemPool::new(1);
+        let mut tx = Transaction::new("a".into(), "b".into(), 1, 1);
+        tx.amount = 2;
+        assert!(mempool.add_tx(tx).is_err());
+        assert!(mempool.is_empty());
     }
 }

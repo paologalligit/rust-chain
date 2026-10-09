@@ -1,22 +1,19 @@
-use hex;
-use crate::core::hashing::{hash_to_binary_representation, calculate_hash};
 use super::Transaction;
+use crate::core::hashing::{calculate_hash, meets_difficulty};
 
+/// Fixed demonstration difficulty. This is not a production consensus parameter.
+pub const DIFFICULTY_BITS: u32 = 8;
+
+/// Finds a nonce for a block preimage at the fixed demonstration difficulty.
 pub fn mine_new_block(
     height: u64,
     timestamp: i64,
     previous_hash: &str,
-    txs: &Vec<Transaction>,
+    txs: &[Transaction],
 ) -> (u64, String) {
-    println!("Mining new block...");
-
     let mut nonce: u64 = 0;
 
     loop {
-        if nonce % 100000 == 0 {
-            println!("Still computing...");
-        }
-
         let data = serde_json::json!({
             "height": height,
             "previous_hash": previous_hash,
@@ -25,20 +22,10 @@ pub fn mine_new_block(
             "nonce": nonce
         });
         let hash = calculate_hash(&data);
-        let binary_hash = hash_to_binary_representation(&hash);
-
-        if binary_hash.starts_with(DIFFICULTY_PREFIX) {
-            println!(
-                "mined! nonce: {}, hash: {}, binary hash: {}",
-                nonce,
-                hex::encode(&hash),
-                binary_hash
-            );
+        if meets_difficulty(&hash, DIFFICULTY_BITS) {
             return (nonce, hex::encode(hash));
         }
 
-        nonce += 1;
+        nonce = nonce.checked_add(1).expect("nonce space exhausted");
     }
 }
-
-pub const DIFFICULTY_PREFIX: &str = "00";

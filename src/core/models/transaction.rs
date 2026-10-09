@@ -23,14 +23,15 @@ impl Transaction {
         });
         Transaction {
             nonce: hex::encode(calculate_hash(&data)),
-            from: from,
-            to: to,
-            amount: amount,
-            fee: fee,
+            from,
+            to,
+            amount,
+            fee,
             signature: None,
         }
     }
 
+    /// Checks the content-derived ID; signature authorization is not consensus-enforced yet.
     pub fn validate(&self) -> Result<(), TransactionValidationError> {
         let data = serde_json::json!({
             "from": self.from,
@@ -61,14 +62,16 @@ impl Transaction {
         calculate_hash(&data)
     }
 
-    pub fn verify_signature(&self, public_key: &PublicKey) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn verify_signature(
+        &self,
+        public_key: &PublicKey,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let message: Message = Message::from_digest(self.to_hash());
         match self.signature {
-            Some(sig) => {
-                Ok(sig.verify(&message, public_key)?)
-            },
+            Some(sig) => Ok(sig.verify(message, public_key)?),
             None => Err(Box::new(EmptySignatureError::new(format!(
-                "Transaction {} has an empty signature", self.nonce
+                "Transaction {} has an empty signature",
+                self.nonce
             )))),
         }
     }
@@ -89,11 +92,7 @@ pub struct TransactionPriority {
 
 impl TransactionPriority {
     pub fn new(nonce: String, fee: u64, amount: u64) -> TransactionPriority {
-        TransactionPriority {
-            nonce: nonce,
-            fee: fee,
-            amount: amount,
-        }
+        TransactionPriority { nonce, fee, amount }
     }
 
     pub fn new_from_tx(tx: &Transaction) -> TransactionPriority {
@@ -111,6 +110,7 @@ impl Ord for TransactionPriority {
             .fee
             .cmp(&self.fee)
             .then_with(|| other.amount.cmp(&self.amount))
+            .then_with(|| self.nonce.cmp(&other.nonce))
     }
 }
 
@@ -122,7 +122,7 @@ impl PartialOrd for TransactionPriority {
 
 impl PartialEq for TransactionPriority {
     fn eq(&self, other: &Self) -> bool {
-        self.nonce == other.nonce
+        self.cmp(other) == std::cmp::Ordering::Equal
     }
 }
 
@@ -165,5 +165,12 @@ mod transaction_test {
         };
 
         assert!(tx2.validate().is_err());
+    }
+
+    #[test]
+    fn changing_signed_fields_invalidates_nonce() {
+        let mut tx = Transaction::new("a".into(), "b".into(), 1, 2);
+        tx.amount = 3;
+        assert!(tx.validate().is_err());
     }
 }

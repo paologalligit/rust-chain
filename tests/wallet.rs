@@ -30,3 +30,21 @@ fn verify_empty_tx_signature_return_error() {
         |e| e.to_string() == format!("Transaction {} has an empty signature", tx.nonce)
     ));
 }
+
+#[test]
+fn signature_from_another_key_is_rejected() {
+    let signer = WalletKeyPair::new();
+    let another = WalletKeyPair::new();
+    let mut tx = Transaction::new("from".into(), "to".into(), 1, 1);
+    tx.sign(&signer.secret_key);
+    assert!(tx.verify_signature(&another.public_key).is_err());
+}
+
+#[test]
+fn changing_transaction_after_signing_invalidates_signature() {
+    let signer = WalletKeyPair::new();
+    let mut tx = Transaction::new("from".into(), "to".into(), 1, 1);
+    tx.sign(&signer.secret_key);
+    tx.fee = 2;
+    assert!(tx.verify_signature(&signer.public_key).is_err());
+}

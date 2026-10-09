@@ -1,13 +1,12 @@
 use crate::core::{
-    hashing::{hash_to_binary_representation, calculate_hash},
-    mining::DIFFICULTY_PREFIX,
+    hashing::{calculate_hash, meets_difficulty},
+    mining::DIFFICULTY_BITS,
 };
-use chrono::Utc;
 use hex::FromHexError;
 
 use super::transaction::Transaction;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
     pub height: u64,
     pub hash: String,
@@ -19,24 +18,41 @@ pub struct Block {
 
 impl Block {
     pub fn genesis() -> Block {
+        let timestamp = 0;
+        let nonce = 0;
+        let txs = Vec::new();
+        let previous_hash = String::from("genesis");
+        let hash = hex::encode(calculate_hash(&serde_json::json!({
+            "height": 0,
+            "previous_hash": previous_hash,
+            "txs": txs,
+            "timestamp": timestamp,
+            "nonce": nonce
+        })));
         Block {
             height: 0,
-            hash: "0000f816a87f806bb0073dcf026a64fb40c946b5abee2573702828694d5b4c43".to_string(),
-            previous_hash: String::from("genesis"),
-            timestamp: Utc::now().timestamp(),
-            txs: Vec::new(),
-            nonce: 2836
+            hash,
+            previous_hash,
+            timestamp,
+            txs,
+            nonce,
         }
     }
 
-    pub fn new(prev_block: &Block, hash: String, timestamp: i64, txs: Vec<Transaction>, nonce: u64) -> Block {
+    pub fn new(
+        prev_block: &Block,
+        hash: String,
+        timestamp: i64,
+        txs: Vec<Transaction>,
+        nonce: u64,
+    ) -> Block {
         Block {
             height: prev_block.height + 1,
-            hash: hash,
+            hash,
             previous_hash: prev_block.hash.clone(),
-            timestamp: timestamp,
-            txs: txs,
-            nonce: nonce
+            timestamp,
+            txs,
+            nonce,
         }
     }
 
@@ -49,8 +65,12 @@ impl Block {
             return Ok(false);
         }
 
-        let decoded_hash = &hex::decode(&self.hash)?;
-        if !hash_to_binary_representation(&decoded_hash).starts_with(DIFFICULTY_PREFIX) {
+        if self.txs.iter().any(|tx| tx.validate().is_err()) {
+            return Ok(false);
+        }
+
+        let decoded_hash = hex::decode(&self.hash)?;
+        if decoded_hash.len() != 32 || !meets_difficulty(&decoded_hash, DIFFICULTY_BITS) {
             return Ok(false);
         }
 

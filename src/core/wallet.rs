@@ -1,5 +1,4 @@
-use secp256k1::rand::rngs::OsRng;
-use secp256k1::{PublicKey, Secp256k1, SecretKey};
+use secp256k1::{generate_keypair, PublicKey, SecretKey};
 
 pub struct Wallet {
     keys: Vec<WalletKeyPair>,
@@ -22,15 +21,22 @@ impl Wallet {
     }
 }
 
+impl Default for Wallet {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct WalletKeyPair {
     pub secret_key: SecretKey,
     pub public_key: PublicKey,
 }
 
 impl WalletKeyPair {
+    // Generating a random secret key should remain an explicit operation.
+    #[allow(clippy::new_without_default)]
     pub fn new() -> WalletKeyPair {
-        let secp = Secp256k1::new();
-        let (secret_key, public_key) = secp.generate_keypair(&mut OsRng);
+        let (secret_key, public_key) = generate_keypair(&mut rand::rng());
 
         WalletKeyPair {
             secret_key,
@@ -52,7 +58,7 @@ mod wallet_test {
         assert_eq!(0, wallet.get_public_keys().len());
 
         let key_pair = WalletKeyPair::new();
-        let public_key = key_pair.public_key.clone();
+        let public_key = key_pair.public_key;
         wallet.add_key_pair(key_pair);
 
         let retrieved_key_pair = wallet.get_public_keys();
