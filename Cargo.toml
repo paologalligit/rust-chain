@@ -3,7 +3,7 @@ name = "rust-chain"
 version = "0.1.0"
 edition = "2021"
 description = "An educational proof-of-work blockchain prototype in Rust"
-repository = "https://github.com/milkshakeWaves/rust-chain"
+repository = "https://github.com/paologalligit/rust-chain"
 readme = "README.md"
 publish = false
 

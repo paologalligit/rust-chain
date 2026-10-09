@@ -1,6 +1,6 @@
 # rust-chain
 
-[![CI](https://github.com/milkshakeWaves/rust-chain/actions/workflows/ci.yml/badge.svg)](https://github.com/milkshakeWaves/rust-chain/actions/workflows/ci.yml)
+[![CI](https://github.com/paologalligit/rust-chain/actions/workflows/ci.yml/badge.svg)](https://github.com/paologalligit/rust-chain/actions/workflows/ci.yml)
 
 A small Rust proof of work blockchain prototype for exploring chain validation, transaction identity, mempool ordering, and secp256k1 signatures. It is a learning project with explicit invariants and an executable mining demo. It is **not** a cryptocurrency node or a system for real funds.
 
