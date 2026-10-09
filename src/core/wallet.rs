@@ -36,7 +36,7 @@ impl WalletKeyPair {
     // Generating a random secret key should remain an explicit operation.
     #[allow(clippy::new_without_default)]
     pub fn new() -> WalletKeyPair {
-        let (secret_key, public_key) = generate_keypair(&mut rand::rng());
+        let (secret_key, public_key) = generate_keypair(&mut secp256k1::rand::rng());
 
         WalletKeyPair {
             secret_key,
