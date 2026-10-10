@@ -10,7 +10,7 @@ fn verify_correct_tx_signature() {
         12345,
         100,
     );
-    tx.sign(&key_pair.secret_key);
+    tx.sign(&key_pair.secret_key).unwrap();
 
     assert!(tx.verify_signature(&key_pair.public_key).is_ok());
 }
@@ -36,7 +36,7 @@ fn signature_from_another_key_is_rejected() {
     let signer = WalletKeyPair::new();
     let another = WalletKeyPair::new();
     let mut tx = Transaction::new("from".into(), "to".into(), 1, 1);
-    tx.sign(&signer.secret_key);
+    tx.sign(&signer.secret_key).unwrap();
     assert!(tx.verify_signature(&another.public_key).is_err());
 }
 
@@ -44,7 +44,7 @@ fn signature_from_another_key_is_rejected() {
 fn changing_transaction_after_signing_invalidates_signature() {
     let signer = WalletKeyPair::new();
     let mut tx = Transaction::new("from".into(), "to".into(), 1, 1);
-    tx.sign(&signer.secret_key);
+    tx.sign(&signer.secret_key).unwrap();
     tx.fee = 2;
     assert!(tx.verify_signature(&signer.public_key).is_err());
 }

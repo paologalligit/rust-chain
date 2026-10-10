@@ -104,7 +104,7 @@ mod history_tests {
         let hs = History::new(Box::new(NaiveReorgStrategy));
         let mut hs2 = History::new(Box::new(NaiveReorgStrategy));
         let parent = hs2.get_last_block().unwrap();
-        let (nonce, hash) = mine_new_block(1, 1, &parent.hash, &[]);
+        let (nonce, hash) = mine_new_block(1, 1, &parent.hash, &[]).unwrap();
         hs2.try_to_append(Block::new(parent, hash, 1, vec![], nonce))
             .unwrap();
 

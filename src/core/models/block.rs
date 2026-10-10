@@ -1,13 +1,15 @@
 use crate::core::{
-    hashing::{calculate_hash, meets_difficulty},
+    codec::{block_preimage, BLOCK_VERSION},
+    hashing::{hash_bytes, meets_difficulty},
     mining::DIFFICULTY_BITS,
+    CodecError,
 };
-use hex::FromHexError;
 
 use super::transaction::Transaction;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
+    pub version: u16,
     pub height: u64,
     pub hash: String,
     pub previous_hash: String,
@@ -21,15 +23,13 @@ impl Block {
         let timestamp = 0;
         let nonce = 0;
         let txs = Vec::new();
-        let previous_hash = String::from("genesis");
-        let hash = hex::encode(calculate_hash(&serde_json::json!({
-            "height": 0,
-            "previous_hash": previous_hash,
-            "txs": txs,
-            "timestamp": timestamp,
-            "nonce": nonce
-        })));
+        let previous_hash = "00".repeat(32);
+        let hash = hex::encode(hash_bytes(
+            &block_preimage(BLOCK_VERSION, 0, &previous_hash, timestamp, &txs, nonce)
+                .expect("genesis has a valid v1 preimage"),
+        ));
         Block {
+            version: BLOCK_VERSION,
             height: 0,
             hash,
             previous_hash,
@@ -47,6 +47,7 @@ impl Block {
         nonce: u64,
     ) -> Block {
         Block {
+            version: BLOCK_VERSION,
             height: prev_block.height + 1,
             hash,
             previous_hash: prev_block.hash.clone(),
@@ -56,7 +57,11 @@ impl Block {
         }
     }
 
-    pub fn verify(&self, prev_block: &Block) -> Result<bool, FromHexError> {
+    pub fn verify(&self, prev_block: &Block) -> Result<bool, CodecError> {
+        if self.version != BLOCK_VERSION {
+            return Ok(false);
+        }
+
         if self.previous_hash != prev_block.hash {
             return Ok(false);
         }
@@ -69,21 +74,12 @@ impl Block {
             return Ok(false);
         }
 
-        let decoded_hash = hex::decode(&self.hash)?;
-        if decoded_hash.len() != 32 || !meets_difficulty(&decoded_hash, DIFFICULTY_BITS) {
+        let decoded_hash = crate::core::codec::parse_hash(&self.hash)?;
+        if !meets_difficulty(&decoded_hash, DIFFICULTY_BITS) {
             return Ok(false);
         }
 
-        let data = serde_json::json!({
-            "height": self.height,
-            "previous_hash": &self.previous_hash,
-            "txs": &self.txs,
-            "timestamp": self.timestamp,
-            "nonce": self.nonce
-        });
-        let encoded_hash = hex::encode(calculate_hash(&data));
-
-        if encoded_hash != self.hash {
+        if hash_bytes(&self.preimage_bytes()?) != decoded_hash {
             return Ok(false);
         }
 

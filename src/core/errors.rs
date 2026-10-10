@@ -1,4 +1,4 @@
-use hex::FromHexError;
+use super::CodecError;
 use std::fmt;
 
 #[derive(Debug, Clone)]
@@ -10,8 +10,8 @@ impl fmt::Display for AppendToHistoryError {
     }
 }
 
-impl From<FromHexError> for AppendToHistoryError {
-    fn from(_: FromHexError) -> AppendToHistoryError {
+impl From<CodecError> for AppendToHistoryError {
+    fn from(_: CodecError) -> AppendToHistoryError {
         AppendToHistoryError {}
     }
 }
