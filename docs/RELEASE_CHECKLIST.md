@@ -11,11 +11,12 @@ This is a gate for any future claim that the software is fit to run as a network
 - [x] CI coverage report as an artifact
 - [x] Automated RustSec advisory scan and dependency update proposals
 - [x] Gated Linux binary artifact for version tags
-- [x] Coverage threshold calibrated from a 93.49% local line-coverage baseline (CI floor: 85%)
+- [x] Coverage threshold checked against a 94.77% local line-coverage baseline (CI floor: 85%)
 
 ## Protocol and operations gate
 
-- [ ] Versioned canonical encoding and independent test vectors
+- [x] Versioned canonical transaction and block encoding
+- [ ] Independent decoder and cross-implementation test vectors
 - [ ] Sender authorization and deterministic state transitions
 - [ ] Replay, double-spend, overflow, and malformed-input tests
 - [ ] Cumulative-work fork choice and time/difficulty rules

@@ -15,7 +15,7 @@ Transaction::new -> validate -> MemPool (fee order)
 
 ## Rules enforced today
 
-1. Genesis is deterministic: height 0, timestamp 0, nonce 0, and a hash of its own preimage. It is trusted as the chain anchor; it does not need a mined proof.
+1. Genesis is deterministic: version 1, height 0, timestamp 0, nonce 0, zero previous hash, and a hash of its own binary preimage. It is trusted as the chain anchor; it does not need a mined proof.
 2. A child block must point to the current tip, increment height by one, contain transactions whose content-derived IDs match their fields, and carry a 32-byte SHA-256 hash satisfying the fixed 8-bit target. Its hash must match the recalculated preimage.
 3. An invalid append returns an error without changing the chain. Candidate reorganization chains must start with the same genesis and pass every adjacent-block check before selection.
 4. The mempool indexes transactions by ID and by a total priority order: higher fee, then higher amount, then lexicographic ID. At capacity, an equal or worse candidate is rejected; a better candidate evicts the worst. Replacing an existing ID does not evict.
@@ -25,7 +25,7 @@ Transaction::new -> validate -> MemPool (fee order)
 
 ## Deliberate tradeoffs
 
-- The JSON preimage is easy to inspect, but it is not a stable consensus encoding. Changes to field names, ordering, or serialization libraries can change hashes. A versioned byte encoding is needed before interoperability.
+- The [v1 byte format](CONSENSUS_ENCODING.md) fixes widths and ordering. It deliberately breaks the earlier JSON hash format; there is no persisted state to migrate. Independent decoder checks and broader protocol rules remain M1 work.
 - The difficulty is fixed at 8 leading zero bits so tests and the demo finish quickly. It gives no meaningful attack resistance.
 - The chain-selection policy uses length because every non-genesis block currently has the same difficulty. Cumulative-work fork choice is required before variable difficulty.
 - All state is in memory. Persistence needs atomic writes, recovery checks, and a migration strategy.
