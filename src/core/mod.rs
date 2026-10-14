@@ -1,4 +1,5 @@
 //! Blocks, transactions, history, mining, wallet keys, and the mempool.
+mod codec;
 mod errors;
 mod hashing;
 mod history;
@@ -7,6 +8,7 @@ mod mining;
 mod models;
 mod wallet;
 
+pub use codec::{CodecError, BLOCK_VERSION, TRANSACTION_VERSION};
 pub use errors::{AppendToHistoryError, EmptySignatureError, TransactionValidationError};
 pub use history::{History, NaiveReorgStrategy};
 pub use memory_pool::MemPool;

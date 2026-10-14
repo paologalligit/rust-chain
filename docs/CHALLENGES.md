@@ -9,12 +9,13 @@ These are the problems that shaped this iteration, plus the boundaries still ope
 - **Mempool ordering contract:** different transactions with the same fee and amount compared equal in `Ord` but unequal in `Eq`, so `BTreeSet` silently lost entries. The transaction ID now breaks ties, and a regression test covers the case.
 - **Capacity edge cases:** a duplicate could evict another transaction; capacity zero could panic. Admission checks duplicates first and rejects candidates that do not outrank the current worst entry.
 - **Genesis drift:** the old genesis timestamp changed on every construction, while its hash stayed constant. Genesis is now deterministic and hash-consistent.
+- **Serialization drift:** consensus hashes depended on JSON formatting and dependency behavior. Versioned binary preimages now fix byte order, field widths, and signature placement; decoders reject noncanonical input.
 
 ## Open design work
 
 | Challenge | Why it matters | Direction |
 | --- | --- | --- |
-| Canonical encoding | JSON is not an interoperable consensus format. | Specify versioned bytes, field ordering, integer widths, and test vectors. |
+| Independent interoperability | The v1 Rust codec and fixed vectors do not prove a second implementation agrees. | Check the spec with an independent decoder and publish cross-implementation vectors. |
 | Identity and authorization | `from` is an arbitrary string and block validation does not verify signatures. | Define address derivation, sender key binding, and signature requirements. |
 | State transition | Validly hashed transactions do not move balances or prevent overspend. | Add a deterministic account or UTXO model with replay and overflow checks. |
 | Fork choice | Length alone is insufficient when difficulty changes. | Track cumulative work and define tie behavior. |

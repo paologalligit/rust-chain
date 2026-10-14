@@ -1,14 +1,10 @@
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-pub fn calculate_hash(data: &Value) -> [u8; 32] {
-    let mut hasher = Sha256::new();
-    hasher.update(data.to_string().as_bytes());
-    hasher
-        .finalize()
-        .as_slice()
-        .try_into()
-        .expect("Failed to convert hash to array")
+pub fn hash_bytes(bytes: &[u8]) -> [u8; 32] {
+    let digest = Sha256::digest(bytes);
+    let mut result = [0u8; 32];
+    result.copy_from_slice(&digest);
+    result
 }
 
 pub fn meets_difficulty(hash: &[u8], leading_zero_bits: u32) -> bool {
@@ -24,21 +20,14 @@ pub fn meets_difficulty(hash: &[u8], leading_zero_bits: u32) -> bool {
 
 #[cfg(test)]
 mod hashing_test {
-    use super::{calculate_hash, meets_difficulty};
+    use super::{hash_bytes, meets_difficulty};
 
     #[test]
-    fn create_32_len_hash() {
-        let data = serde_json::json!({
-            "height": "height",
-            "previous_hash": "previous_hash",
-            "txs": Vec::<String>::new(),
-            "timestamp": 123456789,
-            "nonce": "nonce"
-        });
-
-        let hash = calculate_hash(&data);
-
-        assert_eq!(32, hash.len());
+    fn sha256_known_vector() {
+        assert_eq!(
+            hex::encode(hash_bytes(b"abc")),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
     }
 
     #[test]

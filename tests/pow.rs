@@ -1,7 +1,7 @@
 use rust_chain::core::{mine_new_block, Block, History, NaiveReorgStrategy, Transaction};
 
 fn mined_child(parent: &Block, timestamp: i64, txs: Vec<Transaction>) -> Block {
-    let (nonce, hash) = mine_new_block(parent.height + 1, timestamp, &parent.hash, &txs);
+    let (nonce, hash) = mine_new_block(parent.height + 1, timestamp, &parent.hash, &txs).unwrap();
     Block::new(parent, hash, timestamp, txs, nonce)
 }
 
@@ -58,7 +58,8 @@ fn rejects_block_containing_invalid_transaction() {
     let mut history = History::new(Box::new(NaiveReorgStrategy));
     let mut tx = Transaction::new("a".into(), "b".into(), 5, 1);
     tx.amount = 6;
-    let block = mined_child(history.get_last_block().unwrap(), 1, vec![tx]);
+    let mut block = mined_child(history.get_last_block().unwrap(), 1, vec![]);
+    block.txs.push(tx);
     assert!(history.try_to_append(block).is_err());
     assert_eq!(1, history.get_height());
 }

@@ -1,10 +1,14 @@
 use secp256k1::{ecdsa::Signature, Message, PublicKey, SecretKey};
 use serde::Serialize;
 
-use crate::core::{hashing::calculate_hash, EmptySignatureError, TransactionValidationError};
+use crate::core::{
+    codec::{signing_digest, transaction_id, TRANSACTION_VERSION},
+    CodecError, EmptySignatureError, TransactionValidationError,
+};
 
 #[derive(Debug, Serialize, Clone, Eq)]
 pub struct Transaction {
+    pub version: u16,
     pub nonce: String,
     pub from: String,
     pub to: String,
@@ -15,58 +19,43 @@ pub struct Transaction {
 
 impl Transaction {
     pub fn new(from: String, to: String, amount: u64, fee: u64) -> Transaction {
-        let data = serde_json::json!({
-            "from": from,
-            "to": to,
-            "amount": amount,
-            "fee": fee
-        });
-        Transaction {
-            nonce: hex::encode(calculate_hash(&data)),
+        let mut tx = Transaction {
+            version: TRANSACTION_VERSION,
+            nonce: String::new(),
             from,
             to,
             amount,
             fee,
             signature: None,
-        }
+        };
+        tx.nonce = hex::encode(transaction_id(&tx).expect("v1 fields have a valid length"));
+        tx
     }
 
     /// Checks the content-derived ID; signature authorization is not consensus-enforced yet.
     pub fn validate(&self) -> Result<(), TransactionValidationError> {
-        let data = serde_json::json!({
-            "from": self.from,
-            "to": self.to,
-            "amount": self.amount,
-            "fee": self.fee
-        });
-        if hex::encode(calculate_hash(&data)) == self.nonce {
-            Ok(())
-        } else {
-            Err(TransactionValidationError {})
-        }
+        self.to_bytes()
+            .map(|_| ())
+            .map_err(|_| TransactionValidationError {})
     }
 
-    pub fn sign(&mut self, secret_key: &SecretKey) {
-        let message: Message = Message::from_digest(self.to_hash());
+    pub fn sign(&mut self, secret_key: &SecretKey) -> Result<(), CodecError> {
+        self.to_bytes()?;
+        let message: Message = Message::from_digest(self.to_hash()?);
         self.signature = Some(secret_key.sign_ecdsa(message));
+        Ok(())
     }
 
-    pub fn to_hash(&self) -> [u8; 32] {
-        let data = serde_json::json!({
-            "nonce": &self.nonce,
-            "from": &self.from,
-            "to": &self.to,
-            "amount": self.amount,
-            "fee": self.fee
-        });
-        calculate_hash(&data)
+    pub fn to_hash(&self) -> Result<[u8; 32], CodecError> {
+        signing_digest(self)
     }
 
     pub fn verify_signature(
         &self,
         public_key: &PublicKey,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let message: Message = Message::from_digest(self.to_hash());
+        self.to_bytes()?;
+        let message: Message = Message::from_digest(self.to_hash()?);
         match self.signature {
             Some(sig) => Ok(sig.verify(message, public_key)?),
             None => Err(Box::new(EmptySignatureError::new(format!(
@@ -156,6 +145,7 @@ mod transaction_test {
         assert!(tx.validate().is_err());
 
         let tx2 = Transaction {
+            version: super::TRANSACTION_VERSION,
             nonce: "another-bad-nonce".to_string(),
             from: "from-address".to_string(),
             to: "to-address".to_string(),

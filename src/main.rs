@@ -1,7 +1,7 @@
 use chrono::Utc;
-use rust_chain::core::{mine_new_block, AppendToHistoryError, Block, History, NaiveReorgStrategy};
+use rust_chain::core::{mine_new_block, Block, History, NaiveReorgStrategy};
 
-fn main() -> Result<(), AppendToHistoryError> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut history = History::new(Box::new(NaiveReorgStrategy));
     println!("Mining four demo blocks at fixed 8-bit difficulty");
 
@@ -10,7 +10,7 @@ fn main() -> Result<(), AppendToHistoryError> {
         let height = prev_block.height + 1;
         let timestamp = Utc::now().timestamp();
         let txs = Vec::new();
-        let (nonce, hash) = mine_new_block(height, timestamp, &prev_block.hash, &txs);
+        let (nonce, hash) = mine_new_block(height, timestamp, &prev_block.hash, &txs)?;
         let new_block = Block::new(prev_block, hash, timestamp, txs, nonce);
         history.try_to_append(new_block)?;
         println!("height={height} nonce={nonce}");

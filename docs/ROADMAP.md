@@ -13,7 +13,7 @@ A prioritized plan, not a promise of release dates. Each milestone has a concret
 
 ## M1 — consensus specification
 
-- [ ] Define a canonical binary transaction and block encoding with version fields
+- [x] Define a canonical binary transaction and block encoding with version fields ([v1 specification](CONSENSUS_ENCODING.md))
 - [ ] Publish fixed hash and signature test vectors across two implementations or independent decoders
 - [ ] Define transaction uniqueness, replay rules, and timestamp limits
 - [ ] Replace generic validation errors with typed, testable failure causes

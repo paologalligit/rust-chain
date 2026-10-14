@@ -18,12 +18,12 @@ The binary mines four empty blocks at a fixed 8-bit demonstration difficulty and
 
 | Component | Current behavior |
 | --- | --- |
-| Blocks and mining | SHA-256 over a JSON block preimage; nonce search; fixed leading-zero-bit difficulty; parent, height, hash, transaction identity, and proof checks before append. |
+| Blocks and mining | SHA-256 over a versioned binary block preimage; nonce search; fixed leading-zero-bit difficulty; parent, height, hash, transaction identity, and proof checks before append. |
 | History | In-memory chain beginning at a deterministic genesis block; validates a candidate chain before applying a naive longest-chain choice. |
 | Transactions and wallet | Content-derived transaction ID, ECDSA signing and verification with `secp256k1`, in-memory key pairs. |
 | Mempool | Bounded priority queue ordered by fee, amount, then transaction ID; duplicate IDs replace without evicting another entry. |
 
-The implementation uses `serde_json` for a readable block preimage and `secp256k1` for the signature primitive. Those dependencies serve specific boundaries; no network or persistence framework is included until the protocol and storage contracts are defined.
+The [v1 consensus encoding](docs/CONSENSUS_ENCODING.md) specifies the exact transaction and block bytes, including signatures and fixed hash examples. The implementation uses `secp256k1` for the signature primitive and keeps `serde` for application-facing serialization; neither chooses the consensus byte layout. No network or persistence framework is included until those contracts are defined.
 
 ## Quality gates
 
@@ -35,7 +35,7 @@ cargo doc --no-deps --locked
 cargo build --release --locked
 ```
 
-CI runs these checks on pull requests and pushes, enforces an 85% LLVM line-coverage floor, and scans dependencies against RustSec advisories. The coverage report is uploaded as a build artifact. A `v*` tag packages the Linux demo binary and SHA-256 checksum after all gates pass. The measured baseline for this revision is 93.49%, including the demo binary, which tests do not execute. For a local coverage report, install `cargo-llvm-cov` and the `llvm-tools-preview` Rust component, then run:
+CI runs these checks on pull requests and pushes, enforces an 85% LLVM line-coverage floor, and scans dependencies against RustSec advisories. The coverage report is uploaded as a build artifact. A `v*` tag packages the Linux demo binary and SHA-256 checksum after all gates pass. For a local coverage report, install `cargo-llvm-cov` and the `llvm-tools-preview` Rust component, then run:
 
 ```sh
 cargo llvm-cov --locked --workspace --all-targets --lcov --output-path lcov.info
@@ -47,4 +47,4 @@ cargo llvm-cov --locked --workspace --all-targets --lcov --output-path lcov.info
 
 The [architecture notes](docs/ARCHITECTURE.md) explain the current data flow and invariants. [Engineering challenges](docs/CHALLENGES.md) records tradeoffs and failure modes. The [roadmap](docs/ROADMAP.md) separates completed work from the next useful milestones, and the [release checklist](docs/RELEASE_CHECKLIST.md) makes the gap to a real node explicit.
 
-This prototype has no peer-to-peer layer, persistent ledger, balances, transaction execution, difficulty adjustment, or account ownership rule linking a signature to `from`. The JSON hash format is illustrative rather than a versioned consensus serialization. A longer chain is chosen by block count, not cumulative work. Do not use it to secure assets.
+This prototype has no peer-to-peer layer, persistent ledger, balances, transaction execution, difficulty adjustment, or account ownership rule linking a signature to `from`. The v1 byte format replaces the older JSON hashes and is incompatible with them. A longer chain is chosen by block count, not cumulative work. Do not use it to secure assets.
